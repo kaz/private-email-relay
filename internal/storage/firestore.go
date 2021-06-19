@@ -36,8 +36,8 @@ func IsFirestoreStorageAvailable() error {
 	return nil
 }
 
-func NewFirestoreStorage() (Storage, error) {
-	client, err := firestore.NewClient(context.Background(), project)
+func NewFirestoreStorage(ctx context.Context) (Storage, error) {
+	client, err := firestore.NewClient(ctx, project)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Firestore client: %w", err)
 	}
@@ -48,8 +48,8 @@ func (s *FirestoreStorage) ref(key string) *firestore.DocumentRef {
 	return s.client.Doc(fmt.Sprintf("%s/%s", collection, key))
 }
 
-func (s *FirestoreStorage) Get(key string) (string, error) {
-	snapshot, err := s.ref(key).Get(context.Background())
+func (s *FirestoreStorage) Get(ctx context.Context, key string) (string, error) {
+	snapshot, err := s.ref(key).Get(ctx)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			return "", fmt.Errorf("%w: %v", ErrorNotFound, key)
@@ -64,15 +64,15 @@ func (s *FirestoreStorage) Get(key string) (string, error) {
 	return data.Address, nil
 }
 
-func (s *FirestoreStorage) Set(key string, value string) error {
-	if _, err := s.ref(key).Set(context.Background(), &firestoreDocument{key, value}); err != nil {
+func (s *FirestoreStorage) Set(ctx context.Context, key, value string) error {
+	if _, err := s.ref(key).Set(ctx, &firestoreDocument{key, value}); err != nil {
 		return fmt.Errorf("failed to write document: %w", err)
 	}
 	return nil
 }
 
-func (s *FirestoreStorage) Unset(key string) error {
-	if _, err := s.ref(key).Delete(context.Background()); err != nil {
+func (s *FirestoreStorage) Unset(ctx context.Context, key string) error {
+	if _, err := s.ref(key).Delete(ctx); err != nil {
 		return fmt.Errorf("failed to delete document: %w", err)
 	}
 	return nil

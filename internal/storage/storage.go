@@ -1,12 +1,15 @@
 package storage
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 type (
 	Storage interface {
-		Get(key string) (string, error)
-		Set(key string, value string) error
-		Unset(key string) error
+		Get(ctx context.Context, key string) (string, error)
+		Set(ctx context.Context, key, value string) error
+		Unset(ctx context.Context, key string) error
 	}
 )
 
