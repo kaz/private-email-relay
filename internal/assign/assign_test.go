@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kaz/private-email-relay/internal/assign"
+	"github.com/kaz/private-email-relay/internal/router"
 	"github.com/kaz/private-email-relay/internal/storage"
 	"github.com/stretchr/testify/assert"
 )
@@ -12,11 +13,15 @@ import (
 var (
 	ctx   = context.Background()
 	store = storage.NewMemoryStorage()
+	route = router.NewMockRouter()
 )
 
 func TestAssignDifferentSite(t *testing.T) {
 	t.Run("Default", func(t *testing.T) {
-		testAssignDifferentSite(t, assign.NewDefaultStrategy(store))
+		s, err := assign.NewDefaultStrategy(store, route)
+		assert.NoError(t, err)
+
+		testAssignDifferentSite(t, s)
 	})
 }
 
@@ -40,7 +45,10 @@ func testAssignDifferentSite(t *testing.T, s assign.Strategy) {
 
 func TestAssignExactlySameSite(t *testing.T) {
 	t.Run("Default", func(t *testing.T) {
-		testAssignExactlySameSite(t, assign.NewDefaultStrategy(store))
+		s, err := assign.NewDefaultStrategy(store, route)
+		assert.NoError(t, err)
+
+		testAssignExactlySameSite(t, s)
 	})
 }
 
@@ -64,7 +72,10 @@ func testAssignExactlySameSite(t *testing.T, s assign.Strategy) {
 
 func TestAssignEffectivelySameSite(t *testing.T) {
 	t.Run("Default", func(t *testing.T) {
-		testAssignEffectivelySameSite(t, assign.NewDefaultStrategy(store))
+		s, err := assign.NewDefaultStrategy(store, route)
+		assert.NoError(t, err)
+
+		testAssignEffectivelySameSite(t, s)
 	})
 }
 
@@ -88,7 +99,10 @@ func testAssignEffectivelySameSite(t *testing.T, s assign.Strategy) {
 
 func TestAssignConfusingDifferentSite(t *testing.T) {
 	t.Run("Default", func(t *testing.T) {
-		testAssignConfusingDifferentSite(t, assign.NewDefaultStrategy(store))
+		s, err := assign.NewDefaultStrategy(store, route)
+		assert.NoError(t, err)
+
+		testAssignConfusingDifferentSite(t, s)
 	})
 }
 
