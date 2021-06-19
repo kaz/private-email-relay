@@ -46,7 +46,7 @@ func (s *DefaultStrategy) Assign(ctx context.Context, url string) (string, error
 	}
 
 	val, err := s.store.Get(ctx, edom)
-	if err != nil && !errors.Is(err, storage.ErrorNotFound) {
+	if err != nil && !errors.Is(err, storage.ErrorUndefinedKey) {
 		return "", fmt.Errorf("failed to get value from storage: %w", err)
 	}
 	if val != "" {
@@ -63,4 +63,16 @@ func (s *DefaultStrategy) Assign(ctx context.Context, url string) (string, error
 	}
 
 	return assignedAddr, nil
+}
+
+func (s *DefaultStrategy) Unassign(ctx context.Context, addr string) error {
+	if err := s.store.UnsetByValue(ctx, addr); err != nil {
+		return fmt.Errorf("failed to delete value from storage: %w", err)
+	}
+
+	if err := s.route.Unset(ctx, addr); err != nil {
+		return fmt.Errorf("failed to remove route: %w", err)
+	}
+
+	return nil
 }

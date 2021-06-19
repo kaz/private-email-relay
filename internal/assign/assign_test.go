@@ -16,15 +16,25 @@ var (
 	route = router.NewMockRouter()
 )
 
-func TestAssignDifferentSite(t *testing.T) {
-	t.Run("Default", func(t *testing.T) {
-		s, err := assign.NewDefaultStrategy(store, route)
-		assert.NoError(t, err)
+func implements(t *testing.T) map[string]assign.Strategy {
+	var err error
+	impl := map[string]assign.Strategy{}
 
-		testAssignDifferentSite(t, s)
-	})
+	impl["default"], err = assign.NewDefaultStrategy(store, route)
+	if !assert.NoError(t, err) {
+		delete(impl, "default")
+	}
+
+	return impl
 }
 
+func TestAssignDifferentSite(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testAssignDifferentSite(t, impl)
+		})
+	}
+}
 func testAssignDifferentSite(t *testing.T, s assign.Strategy) {
 	urls := []string{
 		"https://www.youtube.com/watch?v=mZ0sJQC8qkE",
@@ -44,12 +54,11 @@ func testAssignDifferentSite(t *testing.T, s assign.Strategy) {
 }
 
 func TestAssignExactlySameSite(t *testing.T) {
-	t.Run("Default", func(t *testing.T) {
-		s, err := assign.NewDefaultStrategy(store, route)
-		assert.NoError(t, err)
-
-		testAssignExactlySameSite(t, s)
-	})
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testAssignExactlySameSite(t, impl)
+		})
+	}
 }
 
 func testAssignExactlySameSite(t *testing.T, s assign.Strategy) {
@@ -71,14 +80,12 @@ func testAssignExactlySameSite(t *testing.T, s assign.Strategy) {
 }
 
 func TestAssignEffectivelySameSite(t *testing.T) {
-	t.Run("Default", func(t *testing.T) {
-		s, err := assign.NewDefaultStrategy(store, route)
-		assert.NoError(t, err)
-
-		testAssignEffectivelySameSite(t, s)
-	})
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testAssignEffectivelySameSite(t, impl)
+		})
+	}
 }
-
 func testAssignEffectivelySameSite(t *testing.T, s assign.Strategy) {
 	urls := []string{
 		"https://www.youtube.com/watch?v=mZ0sJQC8qkE",
@@ -98,14 +105,12 @@ func testAssignEffectivelySameSite(t *testing.T, s assign.Strategy) {
 }
 
 func TestAssignConfusingDifferentSite(t *testing.T) {
-	t.Run("Default", func(t *testing.T) {
-		s, err := assign.NewDefaultStrategy(store, route)
-		assert.NoError(t, err)
-
-		testAssignConfusingDifferentSite(t, s)
-	})
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testAssignConfusingDifferentSite(t, impl)
+		})
+	}
 }
-
 func testAssignConfusingDifferentSite(t *testing.T, s assign.Strategy) {
 	urls := []string{
 		"https://kaz.github.io",
@@ -122,4 +127,31 @@ func testAssignConfusingDifferentSite(t *testing.T, s assign.Strategy) {
 	assert.NoError(t, err)
 
 	assert.NotEqual(t, addrs[0], addrs[1])
+}
+
+func TestUnassign(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testUnassign(t, impl)
+		})
+	}
+}
+func testUnassign(t *testing.T, s assign.Strategy) {
+	addr, err := s.Assign(ctx, "https://kaz.github.io")
+	assert.NoError(t, err)
+
+	err = s.Unassign(ctx, addr)
+	assert.NoError(t, err)
+}
+
+func TestUnassignUndefined(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testUnassignUndefined(t, impl)
+		})
+	}
+}
+func testUnassignUndefined(t *testing.T, s assign.Strategy) {
+	err := s.Unassign(ctx, "unassigned@test.test")
+	assert.Error(t, err)
 }
