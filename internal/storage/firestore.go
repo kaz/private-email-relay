@@ -12,7 +12,8 @@ import (
 
 type (
 	FirestoreStorage struct {
-		client *firestore.Client
+		collection string
+		client     *firestore.Client
 	}
 
 	firestoreDocument struct {
@@ -21,31 +22,29 @@ type (
 	}
 )
 
-var (
-	project    = os.Getenv("GCP_PROJECT")
-	collection = os.Getenv("GCP_FIRESTORE_COLLECTION")
-)
-
-func IsFirestoreStorageAvailable() error {
-	if project == "" {
-		return fmt.Errorf("GCP_PROJECT is missing")
-	}
-	if collection == "" {
-		return fmt.Errorf("GCP_FIRESTORE_COLLECTION is missing")
-	}
-	return nil
-}
-
 func NewFirestoreStorage(ctx context.Context) (Storage, error) {
+	project := os.Getenv("GCP_PROJECT")
+	if project == "" {
+		return nil, fmt.Errorf("GCP_PROJECT is missing")
+	}
+
+	collection := os.Getenv("GCP_FIRESTORE_COLLECTION")
+	if collection == "" {
+		return nil, fmt.Errorf("GCP_FIRESTORE_COLLECTION is missing")
+	}
+
 	client, err := firestore.NewClient(ctx, project)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Firestore client: %w", err)
 	}
-	return &FirestoreStorage{client}, nil
+	return &FirestoreStorage{
+		collection: collection,
+		client:     client,
+	}, nil
 }
 
 func (s *FirestoreStorage) ref(key string) *firestore.DocumentRef {
-	return s.client.Doc(fmt.Sprintf("%s/%s", collection, key))
+	return s.client.Doc(fmt.Sprintf("%s/%s", s.collection, key))
 }
 
 func (s *FirestoreStorage) Get(ctx context.Context, key string) (string, error) {
