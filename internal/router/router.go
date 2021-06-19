@@ -1,11 +1,14 @@
 package router
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 type (
 	Router interface {
-		Set(from string, to string) error
-		Unset(from string) error
+		Set(ctx context.Context, from, to string) error
+		Unset(ctx context.Context, from string) error
 	}
 )
 

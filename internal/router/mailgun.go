@@ -46,13 +46,13 @@ func (r *MailgunRouter) createRoute(from, to string) mailgun.Route {
 	}
 }
 
-func (r *MailgunRouter) findRoute(from string) (*mailgun.Route, error) {
+func (r *MailgunRouter) findRoute(ctx context.Context, from string) (*mailgun.Route, error) {
 	expression := r.createExpression(from)
 
 	iter := r.client.ListRoutes(nil)
 	results := []mailgun.Route{}
 
-	for iter.Next(context.Background(), &results) {
+	for iter.Next(ctx, &results) {
 		for _, route := range results {
 			if route.Expression == expression {
 				return &route, nil
@@ -66,8 +66,8 @@ func (r *MailgunRouter) findRoute(from string) (*mailgun.Route, error) {
 	return nil, nil
 }
 
-func (r *MailgunRouter) Set(from, to string) error {
-	route, err := r.findRoute(from)
+func (r *MailgunRouter) Set(ctx context.Context, from, to string) error {
+	route, err := r.findRoute(ctx, from)
 	if err != nil {
 		return fmt.Errorf("failed to find route: %w", err)
 	}
@@ -75,13 +75,13 @@ func (r *MailgunRouter) Set(from, to string) error {
 		return fmt.Errorf("%w: %v", ErrorDuplicated, from)
 	}
 
-	if _, err := r.client.CreateRoute(context.Background(), r.createRoute(from, to)); err != nil {
+	if _, err := r.client.CreateRoute(ctx, r.createRoute(from, to)); err != nil {
 		return fmt.Errorf("failed to create route: %w", err)
 	}
 	return nil
 }
-func (r *MailgunRouter) Unset(from string) error {
-	route, err := r.findRoute(from)
+func (r *MailgunRouter) Unset(ctx context.Context, from string) error {
+	route, err := r.findRoute(ctx, from)
 	if err != nil {
 		return fmt.Errorf("failed to find route: %w", err)
 	}
@@ -89,7 +89,7 @@ func (r *MailgunRouter) Unset(from string) error {
 		return fmt.Errorf("%w: %v", ErrorUnsetNonexistent, from)
 	}
 
-	if err := r.client.DeleteRoute(context.Background(), route.Id); err != nil {
+	if err := r.client.DeleteRoute(ctx, route.Id); err != nil {
 		return fmt.Errorf("failed to delete route: %w", err)
 	}
 	return nil

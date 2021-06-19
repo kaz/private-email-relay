@@ -1,11 +1,16 @@
 package router_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 
 	"github.com/kaz/private-email-relay/internal/router"
 	"github.com/stretchr/testify/assert"
+)
+
+var (
+	ctx = context.Background()
 )
 
 func TestSetAndUnset(t *testing.T) {
@@ -23,10 +28,10 @@ func testSetAndUnset(t *testing.T, r router.Router) {
 
 	// Run 2 times to confirm an entry is successfully deleted
 	for i := 0; i < 2; i++ {
-		err := r.Set(from, to)
+		err := r.Set(ctx, from, to)
 		assert.NoError(t, err)
 
-		err = r.Unset(from)
+		err = r.Unset(ctx, from)
 		assert.NoError(t, err)
 	}
 }
@@ -44,15 +49,15 @@ func testDuplicateSet(t *testing.T, r router.Router) {
 	from := "testDuplicateSet@test.test"
 	to := "dummy@test.test"
 
-	err := r.Set(from, to)
+	err := r.Set(ctx, from, to)
 	assert.NoError(t, err)
 
-	err = r.Set(from, to)
+	err = r.Set(ctx, from, to)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, router.ErrorDuplicated))
 
 	// cleanup
-	err = r.Unset(from)
+	err = r.Unset(ctx, from)
 	assert.NoError(t, err)
 }
 
@@ -68,7 +73,7 @@ func TestUnsetNonexistent(t *testing.T) {
 func testUnsetNonexistent(t *testing.T, r router.Router) {
 	from := "testUnsetNonexistent@test.test"
 
-	err := r.Unset(from)
+	err := r.Unset(ctx, from)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, router.ErrorUnsetNonexistent))
 }
