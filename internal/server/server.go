@@ -62,12 +62,11 @@ func New() (*Server, error) {
 
 func (s *Server) Start() error {
 	e := echo.New()
-
 	e.Use(middleware.Logger())
-	e.Use(s.authenticate)
 
-	e.GET("/address", s.getAddress)
-	e.DELETE("/address", s.deleteAddress)
+	g := e.Group("/relay", s.authenticate)
+	g.GET("", s.getRelay)
+	g.DELETE("", s.deleteRelay)
 
 	return e.Start(s.bindAddr)
 }

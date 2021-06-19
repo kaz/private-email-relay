@@ -7,7 +7,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func (s *Server) getAddress(c echo.Context) error {
+func (s *Server) getRelay(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	url := c.QueryParam("url")
@@ -22,7 +22,7 @@ func (s *Server) getAddress(c echo.Context) error {
 	return c.String(http.StatusCreated, addr)
 }
 
-func (s *Server) deleteAddress(c echo.Context) error {
+func (s *Server) deleteRelay(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	url := c.QueryParam("url")
