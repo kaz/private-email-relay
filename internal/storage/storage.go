@@ -7,12 +7,20 @@ import (
 
 type (
 	Storage interface {
+		// returns ErrorUndefinedKey
 		Get(ctx context.Context, key string) (string, error)
+		// returns ErrorDuplicatedKey, ErrorDuplicatedValue
 		Set(ctx context.Context, key, value string) error
-		Unset(ctx context.Context, key string) error
+		// returns ErrorUndefinedKey
+		UnsetByKey(ctx context.Context, key string) error
+		// returns ErrorUndefinedValue
+		UnsetByValue(ctx context.Context, value string) error
 	}
 )
 
 var (
-	ErrorNotFound = fmt.Errorf("no such entry")
+	ErrorUndefinedKey    = fmt.Errorf("undefined key")
+	ErrorUndefinedValue  = fmt.Errorf("undefined value")
+	ErrorDuplicatedKey   = fmt.Errorf("duplicated key")
+	ErrorDuplicatedValue = fmt.Errorf("duplicated value")
 )

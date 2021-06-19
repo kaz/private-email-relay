@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -12,8 +13,7 @@ import (
 
 type (
 	FirestoreStorage struct {
-		collection string
-		client     *firestore.Client
+		collection *firestore.CollectionRef
 	}
 
 	firestoreDocument struct {
@@ -37,23 +37,37 @@ func NewFirestoreStorage(ctx context.Context) (Storage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Firestore client: %w", err)
 	}
+
 	return &FirestoreStorage{
-		collection: collection,
-		client:     client,
+		collection: client.Collection(collection),
 	}, nil
 }
 
-func (s *FirestoreStorage) ref(key string) *firestore.DocumentRef {
-	return s.client.Doc(fmt.Sprintf("%s/%s", s.collection, key))
+func (s *FirestoreStorage) findByKey(ctx context.Context, key string) (*firestore.DocumentSnapshot, error) {
+	snapshot, err := s.collection.Doc(key).Get(ctx)
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return nil, fmt.Errorf("%w: key=%v", ErrorUndefinedKey, key)
+		}
+		return nil, fmt.Errorf("failed to get document: %w", err)
+	}
+	return snapshot, nil
+}
+func (s *FirestoreStorage) findByValue(ctx context.Context, value string) (*firestore.DocumentSnapshot, error) {
+	snapshots, err := s.collection.Where("address", "==", value).Documents(ctx).GetAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get documents: %w", err)
+	}
+	if len(snapshots) == 0 {
+		return nil, fmt.Errorf("%w: value=%v", ErrorUndefinedValue, value)
+	}
+	return snapshots[0], nil
 }
 
 func (s *FirestoreStorage) Get(ctx context.Context, key string) (string, error) {
-	snapshot, err := s.ref(key).Get(ctx)
+	snapshot, err := s.findByKey(ctx, key)
 	if err != nil {
-		if status.Code(err) == codes.NotFound {
-			return "", fmt.Errorf("%w: %v", ErrorNotFound, key)
-		}
-		return "", fmt.Errorf("failed to get document: %w", err)
+		return "", fmt.Errorf("failed to find document: %w", err)
 	}
 
 	data := &firestoreDocument{}
@@ -64,14 +78,43 @@ func (s *FirestoreStorage) Get(ctx context.Context, key string) (string, error) 
 }
 
 func (s *FirestoreStorage) Set(ctx context.Context, key, value string) error {
-	if _, err := s.ref(key).Set(ctx, &firestoreDocument{key, value}); err != nil {
+	if _, err := s.findByKey(ctx, key); err == nil {
+		return fmt.Errorf("%w: key=%v", ErrorDuplicatedKey, key)
+	} else if !errors.Is(err, ErrorUndefinedKey) {
+		return fmt.Errorf("error occurred while querying by key: %v", err)
+	}
+
+	if _, err := s.findByValue(ctx, value); err == nil {
+		return fmt.Errorf("%w: value=%v", ErrorDuplicatedValue, value)
+	} else if !errors.Is(err, ErrorUndefinedValue) {
+		return fmt.Errorf("error occurred while querying by value: %v", err)
+	}
+
+	if _, err := s.collection.Doc(key).Create(ctx, &firestoreDocument{key, value}); err != nil {
 		return fmt.Errorf("failed to write document: %w", err)
 	}
 	return nil
 }
 
-func (s *FirestoreStorage) Unset(ctx context.Context, key string) error {
-	if _, err := s.ref(key).Delete(ctx); err != nil {
+func (s *FirestoreStorage) UnsetByKey(ctx context.Context, key string) error {
+	snapshot, err := s.findByKey(ctx, key)
+	if err != nil {
+		return fmt.Errorf("failed to find document: %w", err)
+	}
+
+	if _, err := snapshot.Ref.Delete(ctx); err != nil {
+		return fmt.Errorf("failed to delete document: %w", err)
+	}
+	return nil
+}
+
+func (s *FirestoreStorage) UnsetByValue(ctx context.Context, value string) error {
+	snapshot, err := s.findByValue(ctx, value)
+	if err != nil {
+		return fmt.Errorf("failed to find document: %w", err)
+	}
+
+	if _, err := snapshot.Ref.Delete(ctx); err != nil {
 		return fmt.Errorf("failed to delete document: %w", err)
 	}
 	return nil

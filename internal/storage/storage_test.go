@@ -13,21 +13,30 @@ var (
 	ctx = context.Background()
 )
 
-func TestSetAndGet(t *testing.T) {
-	t.Run("Memory", func(t *testing.T) {
-		testSetAndGet(t, storage.NewMemoryStorage())
-	})
-	t.Run("Firestore", func(t *testing.T) {
-		s, err := storage.NewFirestoreStorage(ctx)
-		assert.NoError(t, err)
+func implements(t *testing.T) map[string]storage.Storage {
+	var err error
+	impl := map[string]storage.Storage{
+		"memory": storage.NewMemoryStorage(),
+	}
 
-		testSetAndGet(t, s)
-	})
+	impl["firestore"], err = storage.NewFirestoreStorage(ctx)
+	if !assert.NoError(t, err) {
+		delete(impl, "firestore")
+	}
+
+	return impl
 }
 
+func TestSetAndGet(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testSetAndGet(t, impl)
+		})
+	}
+}
 func testSetAndGet(t *testing.T, s storage.Storage) {
 	key := "testSetAndGet.test"
-	value := "test@test.test"
+	value := "testSetAndGet@test.test"
 
 	err := s.Set(ctx, key, value)
 	assert.NoError(t, err)
@@ -35,31 +44,149 @@ func testSetAndGet(t *testing.T, s storage.Storage) {
 	got, err := s.Get(ctx, key)
 	assert.NoError(t, err)
 	assert.Equal(t, value, got)
+
+	// cleanup
+	err = s.UnsetByKey(ctx, key)
+	assert.NoError(t, err)
 }
 
-func TestSetAndUnset(t *testing.T) {
-	t.Run("Memory", func(t *testing.T) {
-		testSetAndUnset(t, storage.NewMemoryStorage())
-	})
-	t.Run("Firestore", func(t *testing.T) {
-		s, err := storage.NewFirestoreStorage(ctx)
-		assert.NoError(t, err)
-
-		testSetAndUnset(t, s)
-	})
+func TestUnsetByKey(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testUnsetByKey(t, impl)
+		})
+	}
 }
-
-func testSetAndUnset(t *testing.T, s storage.Storage) {
-	key := "testSetAndUnset.test"
-	value := "test@test.test"
+func testUnsetByKey(t *testing.T, s storage.Storage) {
+	key := "testUnsetByKey.test"
+	value := "testUnsetByKey@test.test"
 
 	err := s.Set(ctx, key, value)
 	assert.NoError(t, err)
 
-	err = s.Unset(ctx, key)
+	err = s.UnsetByKey(ctx, key)
 	assert.NoError(t, err)
 
 	_, err = s.Get(ctx, key)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, storage.ErrorNotFound))
+	assert.True(t, errors.Is(err, storage.ErrorUndefinedKey))
+}
+
+func TestUnsetByValue(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testUnsetByValue(t, impl)
+		})
+	}
+}
+func testUnsetByValue(t *testing.T, s storage.Storage) {
+	key := "testUnsetByKey.test"
+	value := "testUnsetByValue@test.test"
+
+	err := s.Set(ctx, key, value)
+	assert.NoError(t, err)
+
+	err = s.UnsetByValue(ctx, value)
+	assert.NoError(t, err)
+
+	_, err = s.Get(ctx, key)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, storage.ErrorUndefinedKey))
+}
+
+func TestGetUndefinedKey(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testGetUndefinedKey(t, impl)
+		})
+	}
+}
+func testGetUndefinedKey(t *testing.T, s storage.Storage) {
+	key := "testGetUndefinedKey.test"
+
+	_, err := s.Get(ctx, key)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, storage.ErrorUndefinedKey))
+}
+
+func TestSetDuplicatedKey(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testSetDuplicatedKey(t, impl)
+		})
+	}
+}
+func testSetDuplicatedKey(t *testing.T, s storage.Storage) {
+	key := "testSetDuplicatedKey.test"
+	values := []string{
+		"testSetDuplicatedKey-0@test.test",
+		"testSetDuplicatedKey-1@test.test",
+	}
+
+	err := s.Set(ctx, key, values[0])
+	assert.NoError(t, err)
+
+	err = s.Set(ctx, key, values[1])
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, storage.ErrorDuplicatedKey))
+
+	// cleanup
+	err = s.UnsetByKey(ctx, key)
+	assert.NoError(t, err)
+}
+
+func TestSetDuplicatedValue(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testSetDuplicatedValue(t, impl)
+		})
+	}
+}
+func testSetDuplicatedValue(t *testing.T, s storage.Storage) {
+	keys := []string{
+		"testSetDuplicatedValue-0.test",
+		"testSetDuplicatedValue-1.test",
+	}
+	value := "testSetDuplicatedValue@test.test"
+
+	err := s.Set(ctx, keys[0], value)
+	assert.NoError(t, err)
+
+	err = s.Set(ctx, keys[1], value)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, storage.ErrorDuplicatedValue))
+
+	// cleanup
+	err = s.UnsetByKey(ctx, keys[0])
+	assert.NoError(t, err)
+}
+
+func TestUnsetUndefinedKey(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testUnsetUndefinedKey(t, impl)
+		})
+	}
+}
+func testUnsetUndefinedKey(t *testing.T, s storage.Storage) {
+	key := "testUnsetUndefinedKey.test"
+
+	err := s.UnsetByKey(ctx, key)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, storage.ErrorUndefinedKey))
+}
+
+func TestUnsetUndefinedValue(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testUnsetUndefinedValue(t, impl)
+		})
+	}
+}
+func testUnsetUndefinedValue(t *testing.T, s storage.Storage) {
+	value := "testUnsetUndefinedValue@test.test"
+
+	err := s.UnsetByValue(ctx, value)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, storage.ErrorUndefinedValue))
 }
