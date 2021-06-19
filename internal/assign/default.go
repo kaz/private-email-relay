@@ -42,7 +42,7 @@ func NewDefaultStrategy(store storage.Storage, route router.Router) (Strategy, e
 func (s *DefaultStrategy) Assign(ctx context.Context, url string) (string, error) {
 	edom, err := effectiveDomain(url)
 	if err != nil {
-		return "", fmt.Errorf("effective domain error: %w", err)
+		return "", fmt.Errorf("error occurred while finding effective domain: %w", err)
 	}
 
 	val, err := s.store.Get(ctx, edom)
@@ -55,7 +55,7 @@ func (s *DefaultStrategy) Assign(ctx context.Context, url string) (string, error
 
 	assignedAddr := fmt.Sprintf("%s@%s", randomString(4), s.emailDomain)
 	if err := s.store.Set(ctx, edom, assignedAddr); err != nil {
-		return "", fmt.Errorf("failed to put value to storage: %w", err)
+		return "", fmt.Errorf("failed to write to storage: %w", err)
 	}
 
 	if err := s.route.Set(ctx, assignedAddr, s.recipientAddr); err != nil {
@@ -65,9 +65,23 @@ func (s *DefaultStrategy) Assign(ctx context.Context, url string) (string, error
 	return assignedAddr, nil
 }
 
-func (s *DefaultStrategy) Unassign(ctx context.Context, addr string) error {
+func (s *DefaultStrategy) UnassignByUrl(ctx context.Context, url string) error {
+	edom, err := effectiveDomain(url)
+	if err != nil {
+		return fmt.Errorf("error occurred while finding effective domain: %w", err)
+	}
+
+	addr, err := s.store.Get(ctx, edom)
+	if err != nil {
+		return fmt.Errorf("failed to determine address: %w", err)
+	}
+
+	return s.UnassignByAddr(ctx, addr)
+}
+
+func (s *DefaultStrategy) UnassignByAddr(ctx context.Context, addr string) error {
 	if err := s.store.UnsetByValue(ctx, addr); err != nil {
-		return fmt.Errorf("failed to delete value from storage: %w", err)
+		return fmt.Errorf("failed to delete from storage: %w", err)
 	}
 
 	if err := s.route.Unset(ctx, addr); err != nil {

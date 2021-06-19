@@ -8,7 +8,14 @@ import (
 )
 
 func (s *Server) getAddress(c echo.Context) error {
-	addr, err := s.strategy.Assign(c.Request().Context(), c.QueryParam("url"))
+	ctx := c.Request().Context()
+
+	url := c.QueryParam("url")
+	if url == "" {
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("`url` is required"))
+	}
+
+	addr, err := s.strategy.Assign(ctx, url)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to assign address: %v", err))
 	}
@@ -16,8 +23,20 @@ func (s *Server) getAddress(c echo.Context) error {
 }
 
 func (s *Server) deleteAddress(c echo.Context) error {
-	if err := s.strategy.Unassign(c.Request().Context(), c.QueryParam("addr")); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to unassign address: %v", err))
+	ctx := c.Request().Context()
+
+	url := c.QueryParam("url")
+	addr := c.QueryParam("addr")
+	if url != "" {
+		if err := s.strategy.UnassignByUrl(ctx, url); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to unassign address: %v", err))
+		}
+	} else if addr != "" {
+		if err := s.strategy.UnassignByAddr(ctx, addr); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to unassign address: %v", err))
+		}
+	} else {
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("either `url` or `addr` is required"))
 	}
 	return c.NoContent(http.StatusNoContent)
 }

@@ -129,29 +129,105 @@ func testAssignConfusingDifferentSite(t *testing.T, s assign.Strategy) {
 	assert.NotEqual(t, addrs[0], addrs[1])
 }
 
-func TestUnassign(t *testing.T) {
+func TestUnassignByUrl(t *testing.T) {
 	for name, impl := range implements(t) {
 		t.Run(name, func(t *testing.T) {
-			testUnassign(t, impl)
+			testUnassignByUrl(t, impl)
 		})
 	}
 }
-func testUnassign(t *testing.T, s assign.Strategy) {
-	addr, err := s.Assign(ctx, "https://kaz.github.io")
+func testUnassignByUrl(t *testing.T, s assign.Strategy) {
+	url := "http://testUnassignByUrl.test"
+
+	_, err := s.Assign(ctx, url)
 	assert.NoError(t, err)
 
-	err = s.Unassign(ctx, addr)
+	err = s.UnassignByUrl(ctx, url)
 	assert.NoError(t, err)
 }
 
-func TestUnassignUndefined(t *testing.T) {
+func TestUnassignByAddr(t *testing.T) {
 	for name, impl := range implements(t) {
 		t.Run(name, func(t *testing.T) {
-			testUnassignUndefined(t, impl)
+			testUnassignByAddr(t, impl)
 		})
 	}
 }
-func testUnassignUndefined(t *testing.T, s assign.Strategy) {
-	err := s.Unassign(ctx, "unassigned@test.test")
+func testUnassignByAddr(t *testing.T, s assign.Strategy) {
+	url := "http://testUnassignByAddr.test"
+
+	addr, err := s.Assign(ctx, url)
+	assert.NoError(t, err)
+
+	err = s.UnassignByAddr(ctx, addr)
+	assert.NoError(t, err)
+}
+
+func TestUnassignByUrlUndefined(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testUnassignByUrlUndefined(t, impl)
+		})
+	}
+}
+func testUnassignByUrlUndefined(t *testing.T, s assign.Strategy) {
+	url := "http://testUnassignByUrlUndefined.test"
+
+	err := s.UnassignByUrl(ctx, url)
 	assert.Error(t, err)
+}
+
+func TestUnassignByAddrUndefined(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testUnassignByAddrUndefined(t, impl)
+		})
+	}
+}
+func testUnassignByAddrUndefined(t *testing.T, s assign.Strategy) {
+	addr := "testUnassignByAddrUndefined@test.test"
+
+	err := s.UnassignByAddr(ctx, addr)
+	assert.Error(t, err)
+}
+
+func TestAssignEdgeSuccess(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testAssignEdgeSuccess(t, impl)
+		})
+	}
+}
+func testAssignEdgeSuccess(t *testing.T, s assign.Strategy) {
+	urls := []string{
+		"//testAssignEdgeSuccess.test",
+		"http://testAssignEdgeSuccess.test:8080",
+		"http://127.0.0.1",
+		"http://127.0.0.1:8080",
+	}
+
+	for _, url := range urls {
+		_, err := s.Assign(ctx, url)
+		assert.NoError(t, err)
+	}
+}
+
+func TestAssignEdgeFail(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testAssignEdgeFail(t, impl)
+		})
+	}
+}
+func testAssignEdgeFail(t *testing.T, s assign.Strategy) {
+	urls := []string{
+		"/testAssignEdgeFail.test",
+		"http://[::1]",
+		"http://[::1]:8080",
+	}
+
+	for _, url := range urls {
+		_, err := s.Assign(ctx, url)
+		assert.Error(t, err)
+	}
 }
