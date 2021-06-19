@@ -13,21 +13,30 @@ var (
 	ctx = context.Background()
 )
 
-func TestSetAndUnset(t *testing.T) {
-	t.Run("Mock", func(t *testing.T) {
-		testSetAndUnset(t, router.NewMockRouter())
-	})
-	t.Run("Mailgun", func(t *testing.T) {
-		r, err := router.NewMailgunRouter()
-		assert.NoError(t, err)
+func implements(t *testing.T) map[string]router.Router {
+	var err error
+	impl := map[string]router.Router{
+		"mock": router.NewMockRouter(),
+	}
 
-		testSetAndUnset(t, r)
-	})
+	impl["mailgun"], err = router.NewMailgunRouter()
+	if !assert.NoError(t, err) {
+		delete(impl, "mailgun")
+	}
+
+	return impl
 }
 
+func TestSetAndUnset(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testSetAndUnset(t, impl)
+		})
+	}
+}
 func testSetAndUnset(t *testing.T, r router.Router) {
 	from := "testSetAndUnset@test.test"
-	to := "dummy@test.test"
+	to := "recipient@test.test"
 
 	// Run 2 times to confirm an entry is successfully deleted
 	for i := 0; i < 2; i++ {
@@ -39,21 +48,16 @@ func testSetAndUnset(t *testing.T, r router.Router) {
 	}
 }
 
-func TestDuplicateSet(t *testing.T) {
-	t.Run("Mock", func(t *testing.T) {
-		testDuplicateSet(t, router.NewMockRouter())
-	})
-	t.Run("Mailgun", func(t *testing.T) {
-		r, err := router.NewMailgunRouter()
-		assert.NoError(t, err)
-
-		testDuplicateSet(t, r)
-	})
+func TestSetDuplicated(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testSetDuplicated(t, impl)
+		})
+	}
 }
-
-func testDuplicateSet(t *testing.T, r router.Router) {
-	from := "testDuplicateSet@test.test"
-	to := "dummy@test.test"
+func testSetDuplicated(t *testing.T, r router.Router) {
+	from := "testSetDuplicated@test.test"
+	to := "recipient@test.test"
 
 	err := r.Set(ctx, from, to)
 	assert.NoError(t, err)
@@ -67,22 +71,17 @@ func testDuplicateSet(t *testing.T, r router.Router) {
 	assert.NoError(t, err)
 }
 
-func TestUnsetNonexistent(t *testing.T) {
-	t.Run("Mock", func(t *testing.T) {
-		testUnsetNonexistent(t, router.NewMockRouter())
-	})
-	t.Run("Mailgun", func(t *testing.T) {
-		r, err := router.NewMailgunRouter()
-		assert.NoError(t, err)
-
-		testUnsetNonexistent(t, r)
-	})
+func TestUnsetUndefined(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testUnsetUndefined(t, impl)
+		})
+	}
 }
-
-func testUnsetNonexistent(t *testing.T, r router.Router) {
-	from := "testUnsetNonexistent@test.test"
+func testUnsetUndefined(t *testing.T, r router.Router) {
+	from := "testUnsetUndefined@test.test"
 
 	err := r.Unset(ctx, from)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, router.ErrorUnsetNonexistent))
+	assert.True(t, errors.Is(err, router.ErrorUndefined))
 }

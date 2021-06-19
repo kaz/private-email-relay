@@ -75,7 +75,7 @@ func (r *MailgunRouter) Unset(ctx context.Context, from string) error {
 		return fmt.Errorf("failed to find route: %w", err)
 	}
 	if route == nil {
-		return fmt.Errorf("%w: %v", ErrorUnsetNonexistent, from)
+		return fmt.Errorf("%w: %v", ErrorUndefined, from)
 	}
 
 	if err := r.client.DeleteRoute(ctx, route.Id); err != nil {

@@ -24,7 +24,7 @@ func (r *MockRouter) Set(ctx context.Context, from, to string) error {
 }
 func (r *MockRouter) Unset(ctx context.Context, from string) error {
 	if _, loaded := r.data.LoadAndDelete(from); !loaded {
-		return fmt.Errorf("%w: %v", ErrorUnsetNonexistent, from)
+		return fmt.Errorf("%w: %v", ErrorUndefined, from)
 	}
 	return nil
 }
