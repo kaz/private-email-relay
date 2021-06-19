@@ -3,7 +3,6 @@ package router
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/mailgun/mailgun-go/v4"
 )
@@ -13,16 +12,6 @@ type (
 		client *mailgun.MailgunImpl
 	}
 )
-
-func IsMailgunRouterAvailable() error {
-	if os.Getenv("MG_DOMAIN") == "" {
-		return fmt.Errorf("MG_DOMAIN is missing")
-	}
-	if os.Getenv("MG_API_KEY") == "" {
-		return fmt.Errorf("MG_API_KEY is missing")
-	}
-	return nil
-}
 
 func NewMailgunRouter() (Router, error) {
 	client, err := mailgun.NewMailgunFromEnv()

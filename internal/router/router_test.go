@@ -14,6 +14,9 @@ var (
 )
 
 func TestSetAndUnset(t *testing.T) {
+	t.Run("Mock", func(t *testing.T) {
+		testSetAndUnset(t, router.NewMockRouter())
+	})
 	t.Run("Mailgun", func(t *testing.T) {
 		r, err := router.NewMailgunRouter()
 		assert.NoError(t, err)
@@ -37,6 +40,9 @@ func testSetAndUnset(t *testing.T, r router.Router) {
 }
 
 func TestDuplicateSet(t *testing.T) {
+	t.Run("Mock", func(t *testing.T) {
+		testDuplicateSet(t, router.NewMockRouter())
+	})
 	t.Run("Mailgun", func(t *testing.T) {
 		r, err := router.NewMailgunRouter()
 		assert.NoError(t, err)
@@ -62,6 +68,9 @@ func testDuplicateSet(t *testing.T, r router.Router) {
 }
 
 func TestUnsetNonexistent(t *testing.T) {
+	t.Run("Mock", func(t *testing.T) {
+		testUnsetNonexistent(t, router.NewMockRouter())
+	})
 	t.Run("Mailgun", func(t *testing.T) {
 		r, err := router.NewMailgunRouter()
 		assert.NoError(t, err)
