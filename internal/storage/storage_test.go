@@ -14,6 +14,9 @@ var (
 )
 
 func TestSetAndGet(t *testing.T) {
+	t.Run("Memory", func(t *testing.T) {
+		testSetAndGet(t, storage.NewMemoryStorage())
+	})
 	t.Run("Firestore", func(t *testing.T) {
 		s, err := storage.NewFirestoreStorage(ctx)
 		assert.NoError(t, err)
@@ -35,6 +38,9 @@ func testSetAndGet(t *testing.T, s storage.Storage) {
 }
 
 func TestSetAndUnset(t *testing.T) {
+	t.Run("Memory", func(t *testing.T) {
+		testSetAndUnset(t, storage.NewMemoryStorage())
+	})
 	t.Run("Firestore", func(t *testing.T) {
 		s, err := storage.NewFirestoreStorage(ctx)
 		assert.NoError(t, err)
