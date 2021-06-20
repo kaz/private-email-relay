@@ -25,14 +25,13 @@ func NewMemoryStorage() Storage {
 	}
 }
 
-func (s *MemoryStorage) find(needle string) *string {
-	var ret *string
+func (s *MemoryStorage) find(needle string) (string, bool) {
 	for key, entry := range s.data {
 		if entry.value == needle {
-			ret = &key
+			return key, true
 		}
 	}
-	return ret
+	return "", false
 }
 
 func (s *MemoryStorage) Get(ctx context.Context, key string) (string, error) {
@@ -53,7 +52,7 @@ func (s *MemoryStorage) Set(ctx context.Context, key, value string, expires time
 	if _, ok := s.data[key]; ok {
 		return fmt.Errorf("%w: key=%v", ErrorDuplicatedKey, key)
 	}
-	if s.find(value) != nil {
+	if _, ok := s.find(value); ok {
 		return fmt.Errorf("%w: value=%v", ErrorDuplicatedValue, value)
 	}
 
@@ -78,14 +77,13 @@ func (s *MemoryStorage) UnsetByValue(ctx context.Context, value string) (string,
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	keyRef := s.find(value)
-	if keyRef == nil {
+	key, ok := s.find(value)
+	if !ok {
 		return "", fmt.Errorf("%w: value=%v", ErrorUndefinedValue, value)
 	}
 
-	entry := s.data[*keyRef]
-	delete(s.data, *keyRef)
-	return entry.value, nil
+	delete(s.data, key)
+	return value, nil
 }
 
 func (s *MemoryStorage) UnsetExpired(ctx context.Context, until time.Time) ([]string, error) {
