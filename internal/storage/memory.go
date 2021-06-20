@@ -61,29 +61,31 @@ func (s *MemoryStorage) Set(ctx context.Context, key, value string, expires time
 	return nil
 }
 
-func (s *MemoryStorage) UnsetByKey(ctx context.Context, key string) error {
+func (s *MemoryStorage) UnsetByKey(ctx context.Context, key string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, ok := s.data[key]; !ok {
-		return fmt.Errorf("%w: key=%v", ErrorUndefinedKey, key)
+	entry, ok := s.data[key]
+	if !ok {
+		return "", fmt.Errorf("%w: key=%v", ErrorUndefinedKey, key)
 	}
 
 	delete(s.data, key)
-	return nil
+	return entry.value, nil
 }
 
-func (s *MemoryStorage) UnsetByValue(ctx context.Context, value string) error {
+func (s *MemoryStorage) UnsetByValue(ctx context.Context, value string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	keyRef := s.find(value)
 	if keyRef == nil {
-		return fmt.Errorf("%w: value=%v", ErrorUndefinedValue, value)
+		return "", fmt.Errorf("%w: value=%v", ErrorUndefinedValue, value)
 	}
 
+	entry := s.data[*keyRef]
 	delete(s.data, *keyRef)
-	return nil
+	return entry.value, nil
 }
 
 func (s *MemoryStorage) UnsetExpired(ctx context.Context, until time.Time) ([]string, error) {

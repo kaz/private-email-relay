@@ -97,28 +97,32 @@ func (s *FirestoreStorage) Set(ctx context.Context, key, value string, expires t
 	return nil
 }
 
-func (s *FirestoreStorage) UnsetByKey(ctx context.Context, key string) error {
-	snapshot, err := s.findByKey(ctx, key)
-	if err != nil {
-		return fmt.Errorf("failed to find document: %w", err)
+func (s *FirestoreStorage) unsetSnapshot(ctx context.Context, snapshot *firestore.DocumentSnapshot) (string, error) {
+	data := &firestoreDocument{}
+	if err := snapshot.DataTo(&data); err != nil {
+		return "", fmt.Errorf("failed to read document: %w", err)
 	}
 
 	if _, err := snapshot.Ref.Delete(ctx); err != nil {
-		return fmt.Errorf("failed to delete document: %w", err)
+		return "", fmt.Errorf("failed to delete document: %w", err)
 	}
-	return nil
+	return data.Address, nil
 }
 
-func (s *FirestoreStorage) UnsetByValue(ctx context.Context, value string) error {
+func (s *FirestoreStorage) UnsetByKey(ctx context.Context, key string) (string, error) {
+	snapshot, err := s.findByKey(ctx, key)
+	if err != nil {
+		return "", fmt.Errorf("failed to find document: %w", err)
+	}
+	return s.unsetSnapshot(ctx, snapshot)
+}
+
+func (s *FirestoreStorage) UnsetByValue(ctx context.Context, value string) (string, error) {
 	snapshot, err := s.findByValue(ctx, value)
 	if err != nil {
-		return fmt.Errorf("failed to find document: %w", err)
+		return "", fmt.Errorf("failed to find document: %w", err)
 	}
-
-	if _, err := snapshot.Ref.Delete(ctx); err != nil {
-		return fmt.Errorf("failed to delete document: %w", err)
-	}
-	return nil
+	return s.unsetSnapshot(ctx, snapshot)
 }
 
 func (s *FirestoreStorage) UnsetExpired(ctx context.Context, until time.Time) ([]string, error) {
@@ -129,16 +133,11 @@ func (s *FirestoreStorage) UnsetExpired(ctx context.Context, until time.Time) ([
 
 	valuesExpired := []string{}
 	for _, snapshot := range snapshots {
-		data := &firestoreDocument{}
-		if err := snapshot.DataTo(&data); err != nil {
-			return nil, fmt.Errorf("failed to read document: %w", err)
+		addr, err := s.unsetSnapshot(ctx, snapshot)
+		if err != nil {
+			return nil, fmt.Errorf("error occured while deleting document: %w", err)
 		}
-
-		valuesExpired = append(valuesExpired, data.Address)
-
-		if _, err := snapshot.Ref.Delete(ctx); err != nil {
-			return nil, fmt.Errorf("failed to delete document: %w", err)
-		}
+		valuesExpired = append(valuesExpired, addr)
 	}
 
 	return valuesExpired, nil

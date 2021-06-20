@@ -47,7 +47,7 @@ func testSetAndGet(t *testing.T, s storage.Storage) {
 	assert.Equal(t, value, got)
 
 	// cleanup
-	err = s.UnsetByKey(ctx, key)
+	_, err = s.UnsetByKey(ctx, key)
 	assert.NoError(t, err)
 }
 
@@ -65,8 +65,9 @@ func testUnsetByKey(t *testing.T, s storage.Storage) {
 	err := s.Set(ctx, key, value, storage.NeverExpire)
 	assert.NoError(t, err)
 
-	err = s.UnsetByKey(ctx, key)
+	deleted, err := s.UnsetByKey(ctx, key)
 	assert.NoError(t, err)
+	assert.Equal(t, value, deleted)
 
 	_, err = s.Get(ctx, key)
 	assert.Error(t, err)
@@ -87,8 +88,9 @@ func testUnsetByValue(t *testing.T, s storage.Storage) {
 	err := s.Set(ctx, key, value, storage.NeverExpire)
 	assert.NoError(t, err)
 
-	err = s.UnsetByValue(ctx, value)
+	deleted, err := s.UnsetByValue(ctx, value)
 	assert.NoError(t, err)
+	assert.Equal(t, value, deleted)
 
 	_, err = s.Get(ctx, key)
 	assert.Error(t, err)
@@ -174,7 +176,7 @@ func testUnsetExpired(t *testing.T, s storage.Storage) {
 			assert.Equal(t, testCase.value, got)
 
 			// cleanup
-			err = s.UnsetByKey(ctx, testCase.key)
+			_, err = s.UnsetByKey(ctx, testCase.key)
 			assert.NoError(t, err)
 		}
 	}
@@ -217,7 +219,7 @@ func testSetDuplicatedKey(t *testing.T, s storage.Storage) {
 	assert.True(t, errors.Is(err, storage.ErrorDuplicatedKey))
 
 	// cleanup
-	err = s.UnsetByKey(ctx, key)
+	_, err = s.UnsetByKey(ctx, key)
 	assert.NoError(t, err)
 }
 
@@ -243,7 +245,7 @@ func testSetDuplicatedValue(t *testing.T, s storage.Storage) {
 	assert.True(t, errors.Is(err, storage.ErrorDuplicatedValue))
 
 	// cleanup
-	err = s.UnsetByKey(ctx, keys[0])
+	_, err = s.UnsetByKey(ctx, keys[0])
 	assert.NoError(t, err)
 }
 
@@ -257,7 +259,7 @@ func TestUnsetUndefinedKey(t *testing.T) {
 func testUnsetUndefinedKey(t *testing.T, s storage.Storage) {
 	key := "testUnsetUndefinedKey.test"
 
-	err := s.UnsetByKey(ctx, key)
+	_, err := s.UnsetByKey(ctx, key)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, storage.ErrorUndefinedKey))
 }
@@ -272,7 +274,7 @@ func TestUnsetUndefinedValue(t *testing.T) {
 func testUnsetUndefinedValue(t *testing.T, s storage.Storage) {
 	value := "testUnsetUndefinedValue@test.test"
 
-	err := s.UnsetByValue(ctx, value)
+	_, err := s.UnsetByValue(ctx, value)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, storage.ErrorUndefinedValue))
 }
