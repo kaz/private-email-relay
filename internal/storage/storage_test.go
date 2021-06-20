@@ -3,6 +3,7 @@ package storage_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -10,26 +11,71 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	ctx = context.Background()
+type (
+	testCase struct {
+		key     string
+		value   string
+		expires time.Time
+		deleted bool
+	}
 )
 
-func implements(t *testing.T) map[string]storage.Storage {
+var (
+	ctx        = context.Background()
+	implements = map[string]storage.Storage{}
+)
+
+func TestMain(m *testing.M) {
 	var err error
-	impl := map[string]storage.Storage{
-		"memory": storage.NewMemoryStorage(),
+
+	implements["memory"] = storage.NewMemoryStorage()
+
+	implements["firestore"], err = storage.NewFirestoreStorage(ctx)
+	if err != nil {
+		fmt.Printf("[[WARNING]] skip firestore: %v", err)
+		delete(implements, "firestore")
 	}
 
-	impl["firestore"], err = storage.NewFirestoreStorage(ctx)
-	if !assert.NoError(t, err) {
-		delete(impl, "firestore")
+	testCases := []testCase{
+		{
+			key:     "dummy0.test",
+			value:   "dummy0@test.test",
+			expires: storage.NeverExpire,
+		},
+		{
+			key:     "dummy1.test",
+			value:   "dummy1@test.test",
+			expires: storage.NeverExpire,
+		},
+		{
+			key:     "dummy2.test",
+			value:   "dummy2@test.test",
+			expires: storage.NeverExpire,
+		},
 	}
 
-	return impl
+	for _, impl := range implements {
+		for _, testCase := range testCases {
+			if err := impl.Set(ctx, testCase.key, testCase.value, testCase.expires); err != nil {
+				fmt.Printf("[[WARNING]] failed fill dummy: %v", err)
+			}
+		}
+	}
+
+	m.Run()
+
+	// cleanup
+	for _, impl := range implements {
+		for _, testCase := range testCases {
+			if _, err := impl.UnsetByKey(ctx, testCase.key); err != nil {
+				fmt.Printf("[[WARNING]] failed cleanup dummy: %v", err)
+			}
+		}
+	}
 }
 
 func TestSetAndGet(t *testing.T) {
-	for name, impl := range implements(t) {
+	for name, impl := range implements {
 		t.Run(name, func(t *testing.T) {
 			testSetAndGet(t, impl)
 		})
@@ -52,7 +98,7 @@ func testSetAndGet(t *testing.T, s storage.Storage) {
 }
 
 func TestUnsetByKey(t *testing.T) {
-	for name, impl := range implements(t) {
+	for name, impl := range implements {
 		t.Run(name, func(t *testing.T) {
 			testUnsetByKey(t, impl)
 		})
@@ -75,7 +121,7 @@ func testUnsetByKey(t *testing.T, s storage.Storage) {
 }
 
 func TestUnsetByValue(t *testing.T) {
-	for name, impl := range implements(t) {
+	for name, impl := range implements {
 		t.Run(name, func(t *testing.T) {
 			testUnsetByValue(t, impl)
 		})
@@ -98,7 +144,7 @@ func testUnsetByValue(t *testing.T, s storage.Storage) {
 }
 
 func TestUnsetExpired(t *testing.T) {
-	for name, impl := range implements(t) {
+	for name, impl := range implements {
 		t.Run(name, func(t *testing.T) {
 			testUnsetExpired(t, impl)
 		})
@@ -107,12 +153,7 @@ func TestUnsetExpired(t *testing.T) {
 func testUnsetExpired(t *testing.T, s storage.Storage) {
 	now := time.Now()
 
-	testCases := []struct {
-		key     string
-		value   string
-		expires time.Time
-		deleted bool
-	}{
+	testCases := []testCase{
 		{
 			"testUnsetExpired-0.test",
 			"testUnsetExpired-0@test.test",
@@ -183,7 +224,7 @@ func testUnsetExpired(t *testing.T, s storage.Storage) {
 }
 
 func TestGetUndefinedKey(t *testing.T) {
-	for name, impl := range implements(t) {
+	for name, impl := range implements {
 		t.Run(name, func(t *testing.T) {
 			testGetUndefinedKey(t, impl)
 		})
@@ -198,7 +239,7 @@ func testGetUndefinedKey(t *testing.T, s storage.Storage) {
 }
 
 func TestSetDuplicatedKey(t *testing.T) {
-	for name, impl := range implements(t) {
+	for name, impl := range implements {
 		t.Run(name, func(t *testing.T) {
 			testSetDuplicatedKey(t, impl)
 		})
@@ -224,7 +265,7 @@ func testSetDuplicatedKey(t *testing.T, s storage.Storage) {
 }
 
 func TestSetDuplicatedValue(t *testing.T) {
-	for name, impl := range implements(t) {
+	for name, impl := range implements {
 		t.Run(name, func(t *testing.T) {
 			testSetDuplicatedValue(t, impl)
 		})
@@ -250,7 +291,7 @@ func testSetDuplicatedValue(t *testing.T, s storage.Storage) {
 }
 
 func TestUnsetUndefinedKey(t *testing.T) {
-	for name, impl := range implements(t) {
+	for name, impl := range implements {
 		t.Run(name, func(t *testing.T) {
 			testUnsetUndefinedKey(t, impl)
 		})
@@ -265,7 +306,7 @@ func testUnsetUndefinedKey(t *testing.T, s storage.Storage) {
 }
 
 func TestUnsetUndefinedValue(t *testing.T) {
-	for name, impl := range implements(t) {
+	for name, impl := range implements {
 		t.Run(name, func(t *testing.T) {
 			testUnsetUndefinedValue(t, impl)
 		})
