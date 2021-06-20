@@ -3,6 +3,7 @@ package router_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/kaz/private-email-relay/internal/router"
@@ -10,25 +11,26 @@ import (
 )
 
 var (
-	ctx = context.Background()
+	ctx        = context.Background()
+	implements = map[string]router.Router{}
 )
 
-func implements(t *testing.T) map[string]router.Router {
+func TestMain(m *testing.M) {
 	var err error
-	impl := map[string]router.Router{
-		"mock": router.NewMockRouter(),
+
+	implements["mock"] = router.NewMockRouter()
+
+	implements["mailgun"], err = router.NewMailgunRouter()
+	if err != nil {
+		fmt.Printf("[[WARNING]] skip mailgun: %v", err)
+		delete(implements, "mailgun")
 	}
 
-	impl["mailgun"], err = router.NewMailgunRouter()
-	if !assert.NoError(t, err) {
-		delete(impl, "mailgun")
-	}
-
-	return impl
+	m.Run()
 }
 
 func TestSetAndUnset(t *testing.T) {
-	for name, impl := range implements(t) {
+	for name, impl := range implements {
 		t.Run(name, func(t *testing.T) {
 			testSetAndUnset(t, impl)
 		})
@@ -49,7 +51,7 @@ func testSetAndUnset(t *testing.T, r router.Router) {
 }
 
 func TestSetDuplicated(t *testing.T) {
-	for name, impl := range implements(t) {
+	for name, impl := range implements {
 		t.Run(name, func(t *testing.T) {
 			testSetDuplicated(t, impl)
 		})
@@ -72,7 +74,7 @@ func testSetDuplicated(t *testing.T, r router.Router) {
 }
 
 func TestUnsetUndefined(t *testing.T) {
-	for name, impl := range implements(t) {
+	for name, impl := range implements {
 		t.Run(name, func(t *testing.T) {
 			testUnsetUndefined(t, impl)
 		})
