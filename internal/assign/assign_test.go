@@ -14,6 +14,7 @@ import (
 
 var (
 	ctx        = context.Background()
+	now        = time.Now()
 	implements = map[string]assign.Strategy{}
 )
 
@@ -27,6 +28,12 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		fmt.Printf("[[WARNING]] skip default: %v", err)
 		delete(implements, "default")
+	}
+
+	implements["temporary"], err = assign.NewTemporaryStrategy(store, route, func() time.Time { return now.Add(24 * time.Hour) })
+	if err != nil {
+		fmt.Printf("[[WARNING]] skip temporary: %v", err)
+		delete(implements, "temporary")
 	}
 
 	m.Run()
@@ -133,25 +140,6 @@ func testAssignConfusingDifferentSite(t *testing.T, s assign.Strategy) {
 	assert.NotEqual(t, addrs[0], addrs[1])
 }
 
-func TestAssignTemporary(t *testing.T) {
-	for name, impl := range implements {
-		t.Run(name, func(t *testing.T) {
-			testAssignTemporary(t, impl)
-		})
-	}
-}
-func testAssignTemporary(t *testing.T, s assign.Strategy) {
-	url := "http://testAssignTemporary.test"
-
-	addr1, err := s.Assign(ctx, url)
-	assert.NoError(t, err)
-
-	addr2, err := s.AssignTemporary(ctx, url)
-	assert.NoError(t, err)
-
-	assert.NotEqual(t, addr1, addr2)
-}
-
 func TestUnassign(t *testing.T) {
 	for name, impl := range implements {
 		t.Run(name, func(t *testing.T) {
@@ -194,77 +182,6 @@ func testUnassignByAddr(t *testing.T, s assign.Strategy) {
 	assert.NoError(t, err)
 
 	assert.NotEqual(t, addr1, addr2)
-}
-
-func TestUnassignTemporary(t *testing.T) {
-	for name, impl := range implements {
-		t.Run(name, func(t *testing.T) {
-			testUnassignTemporary(t, impl)
-		})
-	}
-}
-func testUnassignTemporary(t *testing.T, s assign.Strategy) {
-	url := "http://testUnassignTemporary.test"
-
-	addr1a, err := s.Assign(ctx, url)
-	assert.NoError(t, err)
-
-	addr1t, err := s.AssignTemporary(ctx, url)
-	assert.NoError(t, err)
-
-	err = s.Unassign(ctx, url)
-	assert.NoError(t, err)
-
-	addr2a, err := s.Assign(ctx, url)
-	assert.NoError(t, err)
-
-	addr2t, err := s.AssignTemporary(ctx, url)
-	assert.NoError(t, err)
-
-	err = s.UnassignTemporary(ctx, url)
-	assert.NoError(t, err)
-
-	addr3a, err := s.Assign(ctx, url)
-	assert.NoError(t, err)
-
-	addr3t, err := s.AssignTemporary(ctx, url)
-	assert.NoError(t, err)
-
-	assert.NotEqual(t, addr1a, addr2a)
-	assert.Equal(t, addr1t, addr2t)
-
-	assert.Equal(t, addr2a, addr3a)
-	assert.NotEqual(t, addr2t, addr3t)
-}
-
-func TestUnassignExpired(t *testing.T) {
-	for name, impl := range implements {
-		t.Run(name, func(t *testing.T) {
-			testUnassignExpired(t, impl)
-		})
-	}
-}
-func testUnassignExpired(t *testing.T, s assign.Strategy) {
-	urls := []string{
-		"http://testUnassignExpired-0.test",
-		"http://testUnassignExpired-1.test",
-		"http://testUnassignExpired-2.test",
-		"http://testUnassignExpired-3.test",
-	}
-
-	for _, url := range urls {
-		_, err := s.AssignTemporary(ctx, url)
-		assert.NoError(t, err)
-	}
-
-	count, err := s.UnassignExpired(ctx, time.Now())
-	assert.NoError(t, err)
-	assert.Equal(t, 0, count)
-
-	// may delete entries created by other test
-	count, err = s.UnassignExpired(ctx, time.Now().Add(365*24*time.Hour))
-	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, count, len(urls))
 }
 
 func TestUnassignUndefined(t *testing.T) {
