@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/kaz/private-email-relay/internal/assign"
 	"github.com/kaz/private-email-relay/internal/router"
@@ -17,7 +18,7 @@ type (
 		bindAddr string
 		token    string
 
-		strategy assign.Strategy
+		assigners map[string]assign.Strategy
 	}
 )
 
@@ -51,22 +52,33 @@ func New() (*Server, error) {
 		return nil, fmt.Errorf("no router is available: %w", err)
 	}
 
-	if dStrategy, err := assign.NewDefaultStrategy(store, route); err == nil {
-		server.strategy = dStrategy
-	} else {
-		return nil, fmt.Errorf("no strategy is available: %w", err)
+	server.assigners = map[string]assign.Strategy{}
+	if defaultAssign, err := assign.NewDefaultStrategy(store, route); err == nil {
+		server.assigners["default"] = defaultAssign
+	}
+	if tempAssign, err := assign.NewTemporaryStrategy(store, route, func() time.Time { return time.Now().Add(3 * 24 * time.Hour) }); err == nil {
+		server.assigners["temporary"] = tempAssign
+	}
+	if len(server.assigners) == 0 {
+		return nil, fmt.Errorf("no strategy is available")
 	}
 
 	return server, nil
 }
 
-func (s *Server) Start() error {
+func (s *Server) Start(debug bool) error {
 	e := echo.New()
+
+	e.Debug = debug
+	e.HidePort = !debug
+	e.HideBanner = !debug
+
 	e.Use(middleware.Logger())
 	e.Use(s.authenticate)
 
 	e.POST("/relay", s.postRelay)
 	e.DELETE("/relay", s.deleteRelay)
+	e.DELETE("/relay/expired", s.deleteRelayExpired)
 
 	return e.Start(s.bindAddr)
 }

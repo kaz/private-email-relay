@@ -33,7 +33,7 @@ func (s *TemporaryStrategy) keyProducerFactory(url string) producer {
 		if err != nil {
 			return "", fmt.Errorf("error occurred while finding effective domain: %w", err)
 		}
-		return fmt.Sprintf("#*TMP*#%s", key), nil
+		return fmt.Sprintf("temp#%s", key), nil
 	}
 }
 
