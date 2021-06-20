@@ -3,6 +3,14 @@ TAG=asia.gcr.io/private-email-relay/private-email-relay
 .PHONY: noop
 noop:
 
+.PHONY: run
+run:
+	go run .
+
+.PHONY: test
+test:
+	go test -race ./...
+
 .PHONY: build
 build:
 	docker build -t $(TAG) --platform linux/x86_64 .
