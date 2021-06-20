@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/kaz/private-email-relay/internal/storage"
 	"github.com/stretchr/testify/assert"
@@ -38,7 +39,7 @@ func testSetAndGet(t *testing.T, s storage.Storage) {
 	key := "testSetAndGet.test"
 	value := "testSetAndGet@test.test"
 
-	err := s.Set(ctx, key, value)
+	err := s.Set(ctx, key, value, storage.NeverExpire)
 	assert.NoError(t, err)
 
 	got, err := s.Get(ctx, key)
@@ -61,7 +62,7 @@ func testUnsetByKey(t *testing.T, s storage.Storage) {
 	key := "testUnsetByKey.test"
 	value := "testUnsetByKey@test.test"
 
-	err := s.Set(ctx, key, value)
+	err := s.Set(ctx, key, value, storage.NeverExpire)
 	assert.NoError(t, err)
 
 	err = s.UnsetByKey(ctx, key)
@@ -83,7 +84,7 @@ func testUnsetByValue(t *testing.T, s storage.Storage) {
 	key := "testUnsetByKey.test"
 	value := "testUnsetByValue@test.test"
 
-	err := s.Set(ctx, key, value)
+	err := s.Set(ctx, key, value, storage.NeverExpire)
 	assert.NoError(t, err)
 
 	err = s.UnsetByValue(ctx, value)
@@ -92,6 +93,91 @@ func testUnsetByValue(t *testing.T, s storage.Storage) {
 	_, err = s.Get(ctx, key)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, storage.ErrorUndefinedKey))
+}
+
+func TestUnsetExpired(t *testing.T) {
+	for name, impl := range implements(t) {
+		t.Run(name, func(t *testing.T) {
+			testUnsetExpired(t, impl)
+		})
+	}
+}
+func testUnsetExpired(t *testing.T, s storage.Storage) {
+	now := time.Now()
+
+	testCases := []struct {
+		key     string
+		value   string
+		expires time.Time
+		deleted bool
+	}{
+		{
+			"testUnsetExpired-0.test",
+			"testUnsetExpired-0@test.test",
+			now.Add(-24 * time.Hour),
+			true,
+		},
+		{
+			"testUnsetExpired-1.test",
+			"testUnsetExpired-1@test.test",
+			now.Add(-1 * time.Hour),
+			true,
+		},
+		{
+			"testUnsetExpired-2.test",
+			"testUnsetExpired-2@test.test",
+			now,
+			false,
+		},
+		{
+			"testUnsetExpired-3.test",
+			"testUnsetExpired-3@test.test",
+			now.Add(1 * time.Hour),
+			false,
+		},
+		{
+			"testUnsetExpired-4.test",
+			"testUnsetExpired-4@test.test",
+			now.Add(24 * time.Hour),
+			false,
+		},
+		{
+			"testUnsetExpired-5.test",
+			"testUnsetExpired-5@test.test",
+			storage.NeverExpire,
+			false,
+		},
+	}
+
+	expectDeleted := []string{}
+	for _, testCase := range testCases {
+		err := s.Set(ctx, testCase.key, testCase.value, testCase.expires)
+		assert.NoError(t, err)
+
+		if testCase.deleted {
+			expectDeleted = append(expectDeleted, testCase.value)
+		}
+	}
+
+	actualDeleted, err := s.UnsetExpired(ctx, now)
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, expectDeleted, actualDeleted)
+
+	for _, testCase := range testCases {
+		if testCase.deleted {
+			_, err = s.Get(ctx, testCase.key)
+			assert.Error(t, err)
+			assert.True(t, errors.Is(err, storage.ErrorUndefinedKey))
+		} else {
+			got, err := s.Get(ctx, testCase.key)
+			assert.NoError(t, err)
+			assert.Equal(t, testCase.value, got)
+
+			// cleanup
+			err = s.UnsetByKey(ctx, testCase.key)
+			assert.NoError(t, err)
+		}
+	}
 }
 
 func TestGetUndefinedKey(t *testing.T) {
@@ -123,10 +209,10 @@ func testSetDuplicatedKey(t *testing.T, s storage.Storage) {
 		"testSetDuplicatedKey-1@test.test",
 	}
 
-	err := s.Set(ctx, key, values[0])
+	err := s.Set(ctx, key, values[0], storage.NeverExpire)
 	assert.NoError(t, err)
 
-	err = s.Set(ctx, key, values[1])
+	err = s.Set(ctx, key, values[1], storage.NeverExpire)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, storage.ErrorDuplicatedKey))
 
@@ -149,10 +235,10 @@ func testSetDuplicatedValue(t *testing.T, s storage.Storage) {
 	}
 	value := "testSetDuplicatedValue@test.test"
 
-	err := s.Set(ctx, keys[0], value)
+	err := s.Set(ctx, keys[0], value, storage.NeverExpire)
 	assert.NoError(t, err)
 
-	err = s.Set(ctx, keys[1], value)
+	err = s.Set(ctx, keys[1], value, storage.NeverExpire)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, storage.ErrorDuplicatedValue))
 

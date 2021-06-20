@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/grpc/codes"
@@ -17,8 +18,8 @@ type (
 	}
 
 	firestoreDocument struct {
-		Target  string `firestore:"target"`
-		Address string `firestore:"address"`
+		Address string    `firestore:"address"`
+		Expires time.Time `firestore:"expires"`
 	}
 )
 
@@ -77,7 +78,7 @@ func (s *FirestoreStorage) Get(ctx context.Context, key string) (string, error) 
 	return data.Address, nil
 }
 
-func (s *FirestoreStorage) Set(ctx context.Context, key, value string) error {
+func (s *FirestoreStorage) Set(ctx context.Context, key, value string, expires time.Time) error {
 	if _, err := s.findByKey(ctx, key); err == nil {
 		return fmt.Errorf("%w: key=%v", ErrorDuplicatedKey, key)
 	} else if !errors.Is(err, ErrorUndefinedKey) {
@@ -90,7 +91,7 @@ func (s *FirestoreStorage) Set(ctx context.Context, key, value string) error {
 		return fmt.Errorf("error occurred while querying by value: %v", err)
 	}
 
-	if _, err := s.collection.Doc(key).Create(ctx, &firestoreDocument{key, value}); err != nil {
+	if _, err := s.collection.Doc(key).Create(ctx, &firestoreDocument{value, expires}); err != nil {
 		return fmt.Errorf("failed to write document: %w", err)
 	}
 	return nil
@@ -118,4 +119,27 @@ func (s *FirestoreStorage) UnsetByValue(ctx context.Context, value string) error
 		return fmt.Errorf("failed to delete document: %w", err)
 	}
 	return nil
+}
+
+func (s *FirestoreStorage) UnsetExpired(ctx context.Context, until time.Time) ([]string, error) {
+	snapshots, err := s.collection.Where("expires", "<", until).Documents(ctx).GetAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to query: %w", err)
+	}
+
+	valuesExpired := []string{}
+	for _, snapshot := range snapshots {
+		data := &firestoreDocument{}
+		if err := snapshot.DataTo(&data); err != nil {
+			return nil, fmt.Errorf("failed to read document: %w", err)
+		}
+
+		valuesExpired = append(valuesExpired, data.Address)
+
+		if _, err := snapshot.Ref.Delete(ctx); err != nil {
+			return nil, fmt.Errorf("failed to delete document: %w", err)
+		}
+	}
+
+	return valuesExpired, nil
 }
